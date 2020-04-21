@@ -1,0 +1,177 @@
+#!/bin/sh
+POSIXLY_CORRECT=yes
+NORMALIZE=1
+
+if [ -t 1 ];
+then
+	HISTOGRAM_BAR_WIDTH=$(( $(tput cols) - 12 ))
+else
+	HISTOGRAM_BAR_WIDTH=79
+fi
+
+while getopts :i:n o
+do
+	case "$o" in
+		i)	FILE_ERE=$OPTARG;;
+		n)	NORMALIZE=0;;
+		*)	echo "Use options -i with a parameter, -n or DIR." >&2
+			exit 1;;
+	esac
+done
+OPTIND=$(( OPTIND - 1 ))
+shift $OPTIND
+
+if [ -d "$*" ];
+then
+	cd "$*"
+elif [ ! -z "$*" ];
+then
+	echo "$* is not a directory." >&2
+	exit 1
+fi
+DIR=$PWD
+
+NF=$(find -type f 2> /dev/null | wc -l)
+ND=$(find -type d 2> /dev/null | wc -l)
+
+if [ ! -z "$FILE_ERE" ];
+then
+	if [ $(echo "$(basename $DIR)" | grep "$FILE_ERE" | wc -l) -eq 0 ];
+	then
+		NF=$(( NF - $(find -type f 2> /dev/null | grep "$FILE_ERE" | wc -l) ))
+		ND=$(( ND - $(find -type d 2> /dev/null | grep "$FILE_ERE" | wc -l) ))
+	else
+		echo "\"-i $FILE_ERE\" cannot match root directory $(basename $DIR)." >&2
+		exit 1
+	fi
+fi
+
+echo "Root directory: $DIR"
+echo "Directories: $ND"
+echo "All files: $NF"
+echo "File size histogram:"
+
+UNDER_100B=0
+UNDER_1KiB=0
+UNDER_10KiB=0
+UNDER_100KiB=0
+UNDER_1MiB=0
+UNDER_10MiB=0
+UNDER_100MiB=0
+UNDER_1GiB=0
+OVER_EQ_1GiB=0
+F_BASE=
+
+for file in $(find -type f 2> /dev/null);
+do
+	#ignoring file matching -i arg regex
+	if [ ! -z "$FILE_ERE" ] && echo "$file" | grep "$FILE_ERE" > /dev/null;
+		then continue
+
+	elif [ -z "$F_BASE" ];
+	then
+		FILESIZE=$(stat -c%s "$file" 2> /dev/null)
+	else
+		F_BASE="$F_BASE $file"
+		FILESIZE=$(stat -c%s "$F_BASE" 2> /dev/null)
+	fi
+	
+	if [ "$?" -eq 0 ]; #succesfully read file size
+	then
+		if [ "$FILESIZE" -lt 100 ];
+			then UNDER_100B=$(( UNDER_100B + 1 ))
+
+		elif [ "$FILESIZE" -lt 1024 ];
+			then UNDER_1KiB=$(( UNDER_1KiB + 1 ))
+
+		elif [ "$FILESIZE" -lt 10240 ];
+			then UNDER_10KiB=$(( UNDER_10KiB + 1 ))
+
+		elif [ "$FILESIZE" -lt 102400 ];
+			then UNDER_100KiB=$(( UNDER_100KiB + 1 ))
+
+		elif [ "$FILESIZE" -lt $(( 1024 * 1024 )) ];
+			then UNDER_1MiB=$(( UNDER_1MiB + 1 ))
+
+		elif [ "$FILESIZE" -lt $(( 10 * 1024 * 1024 )) ];
+			then UNDER_10MiB=$(( UNDER_10MiB + 1 ))
+
+		elif [ "$FILESIZE" -lt $(( 100 * 1024 * 1024 )) ];
+			then UNDER_100MiB=$(( UNDER_100MiB + 1 ))
+
+		elif [ "$FILESIZE" -lt $(( 1024 * 1024 * 1024 )) ];
+			then UNDER_1GiB=$(( UNDER_1GiB + 1 ))
+
+		else
+			OVER_EQ_1GiB=$(( OVER_EQ_1GiB + 1 ))
+		fi
+		F_BASE=
+
+	elif [ -z "$F_BASE" ]; # $? error in stat - file/dir with space
+		then F_BASE="$file"
+	fi
+done
+
+if [ $NORMALIZE -eq 0 ];
+then
+	MAX=$UNDER_100B
+	for num in $UNDER_1KiB $UNDER_10KiB $UNDER_100KiB $UNDER_1MiB $UNDER_10MiB $UNDER_100MiB $UNDER_1GiB $OVER_EQ_1GiB;
+	do
+		if [ "$num" -gt "$MAX" ];
+			then MAX=$num
+		fi
+	done
+
+	if [ "$MAX" -gt "$HISTOGRAM_BAR_WIDTH" ];
+	then	
+		UNDER_100B=$(( UNDER_100B * HISTOGRAM_BAR_WIDTH / MAX ))
+		UNDER_1KiB=$(( UNDER_1KiB * HISTOGRAM_BAR_WIDTH / MAX ))
+		UNDER_10KiB=$(( UNDER_10KiB * HISTOGRAM_BAR_WIDTH / MAX ))
+		UNDER_100KiB=$(( UNDER_100KiB * HISTOGRAM_BAR_WIDTH / MAX ))
+		UNDER_1MiB=$(( UNDER_1MiB * HISTOGRAM_BAR_WIDTH / MAX ))
+		UNDER_10MiB=$(( UNDER_10MiB * HISTOGRAM_BAR_WIDTH / MAX ))
+		UNDER_100MiB=$(( UNDER_100MiB * HISTOGRAM_BAR_WIDTH / MAX ))
+		UNDER_1GiB=$(( UNDER_1GiB * HISTOGRAM_BAR_WIDTH / MAX ))
+		OVER_EQ_1GiB=$(( OVER_EQ_1GiB * HISTOGRAM_BAR_WIDTH / MAX ))
+	fi
+fi
+
+print_bar()
+{
+	COUNT=$1
+	while [ "$COUNT" -gt 0 ];
+	do
+		printf "#"
+		COUNT=$(( COUNT - 1 ))
+	done
+	printf "\n"
+}
+
+printf "  <100 B  : "
+print_bar $UNDER_100B
+
+printf "  <1 KiB  : "
+print_bar $UNDER_1KiB
+
+printf "  <10 KiB : "
+print_bar $UNDER_10KiB
+
+printf "  <100 KiB: "
+print_bar $UNDER_100KiB
+
+printf "  <1 MiB  : "
+print_bar $UNDER_1MiB
+
+printf "  <10 MiB : "
+print_bar $UNDER_10MiB
+
+printf "  <100 MiB: "
+print_bar $UNDER_100MiB
+
+printf "  <1 GiB  : "
+print_bar $UNDER_1GiB
+
+printf "  >=1 GiB : "
+print_bar $OVER_EQ_1GiB
+
+exit 0

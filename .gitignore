@@ -1,3 +1,20 @@
+dir with spaces/
+empty/
+
+proj1/backup/
+proj1/hodnoceni/
+proj1/temp
+file*
+
+*.txt*
+*.html
+ping_bruteforce.sh
+
+
+#########################################
+#    GitHub generated for C projects    #
+#########################################
+
 # Prerequisites
 *.d
 
