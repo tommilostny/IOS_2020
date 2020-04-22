@@ -18,9 +18,14 @@
 #include <semaphore.h>
 #include <stdbool.h>
 
-int *create_shared_int(char **argv, int argv_index)
+//Alokace ve sdílené paměti
+#define create_shared_var(type) \
+	mmap(NULL, sizeof(type), PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0)
+
+//Načte argument programu a vrací jeho celočíselnou hodnotu v nově alokované sdílené paměti
+int *load_arg(char **argv, int argv_index)
 {
-	int *number = mmap(NULL, sizeof(int), PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
+	int *number = create_shared_var(int);
 	errno = 0;
 	*number = strtol(argv[argv_index], NULL, 10);
 	return number;
@@ -36,7 +41,7 @@ int main(int argc, char **argv)
 	srand(time(NULL));
 
 	//počet procesů přistěhovalců; bude postupně vytvořeno PI immigrants (>=1)
-	int *PI = create_shared_int(argv, 1);
+	int *PI = load_arg(argv, 1);
 	if (errno != 0 || *PI < 1)
 	{
 		fprintf(stderr, "Error: %d:\tWrong argument (PI must be >= 1).\n", *PI);
@@ -44,7 +49,7 @@ int main(int argc, char **argv)
 	}
 
 	//max hodnota doby (v milisekundách), po které je generován nový proces immigrant (>= 0, <= 2000)
-	int *IG = create_shared_int(argv, 2);
+	int *IG = load_arg(argv, 2);
 	if (errno != 0 || *IG < 0 || *IG > 2000)
 	{
 		fprintf(stderr, "Error: %d:\tWrong argument (IG must be >= 0 and <= 2000).\n", *IG);
@@ -52,7 +57,7 @@ int main(int argc, char **argv)
 	}
 
 	//max hodnota doby (v milisekundách), po které soudce opět vstoupí do budovy (>= 0, <= 2000)
-	int *JG = create_shared_int(argv, 3);
+	int *JG = load_arg(argv, 3);
 	if (errno != 0 || *JG < 0 || *JG > 2000)
 	{
 		fprintf(stderr, "Error: %d:\tWrong argument (JG must be >= 0 and <= 2000).\n", *JG);
@@ -60,7 +65,7 @@ int main(int argc, char **argv)
 	}
 
 	//max hodnota doby (v milisekundách), která simuluje trvání vyzvedávání certifikátu přistěhovalcem (>= 0, <= 2000)
-	int *IT = create_shared_int(argv, 4);
+	int *IT = load_arg(argv, 4);
 	if (errno != 0 || *IT < 0 || *IT > 2000)
 	{
 		fprintf(stderr, "Error: %d:\tWrong argument (IT must be >= 0 and <= 2000).\n", *IT);
@@ -68,7 +73,7 @@ int main(int argc, char **argv)
 	}
 
 	//max hodnota doby (v milisekundách), která simuluje trvání vydávání rozhodnutí soudcem (>= 0, <= 2000)
-	int *JT = create_shared_int(argv, 5);
+	int *JT = load_arg(argv, 5);
 	if (errno != 0 || *JT < 0 || *JT > 2000)
 	{
 		fprintf(stderr, "Error: %d:\tWrong argument (JT must be >= 0 and <= 2000).\n", *JT);
@@ -76,25 +81,25 @@ int main(int argc, char **argv)
 	}
 
 	//pořadové číslo prováděné akce
-	size_t *A = mmap(NULL, sizeof(int), PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
+	size_t *A = create_shared_var(size_t);
 
 	//aktuální počet přistěhovalců, kteří vstoupili do budovy a dosud o nich nebylo rozhodnuto
-	size_t *NE = mmap(NULL, sizeof(int), PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
+	size_t *NE = create_shared_var(size_t);
 
 	//aktuální počet přistěhovalců, kteří se zaregistrovali a dosud o nich nebylo rozhodnuto
-	size_t *NC = mmap(NULL, sizeof(int), PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
+	size_t *NC = create_shared_var(size_t);
 
 	//počet přistěhovalců, kteří jsou v budově
-	size_t *NB = mmap(NULL, sizeof(int), PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
+	size_t *NB = create_shared_var(size_t);
 	*A = *NE = *NC = *NB = 0;
 
-	sem_t *semaphore = mmap(NULL, sizeof(sem_t), PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
+	sem_t *semaphore = create_shared_var(sem_t);
 	sem_init(semaphore, 1, 1);
 
-	bool *judge_in_building = mmap(NULL, sizeof(bool), PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
+	bool *judge_in_building = create_shared_var(bool);
 	*judge_in_building = false;
 
-	bool *certificate_approved = mmap(NULL, sizeof(bool), PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
+	bool *certificate_approved = create_shared_var(bool);
 	*certificate_approved = false;
 
 	pid_t judge = fork();
