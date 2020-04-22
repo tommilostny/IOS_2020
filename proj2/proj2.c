@@ -110,37 +110,39 @@ int main(int argc, char **argv)
 			sem_wait(semaphore);
 			printf("%lu:\tJUDGE\t: wants to enter.\n", ++(*A));
 			*judge_in_building = true;
-			*certificate_approved = false;
-			printf("%lu:\tJUDGE\t: enters:\t%lu :\t%lu :\t%lu .\n", ++(*A), *NE, *NC, *NB);
+			printf("%lu:\tJUDGE\t: enters:\t\t%lu :\t%lu :\t%lu\n", ++(*A), *NE, *NC, *NB);
 			sem_post(semaphore);
 
-			//vydání rozhodnutí
-			if (*NE != *NC) //pokud nejsou všichni přistěhovalci v budově registrovaní
+			//vydání rozhodnutí, pokud je někdo v budově
+			if (*NB > 0)
 			{
+				if (*NE != *NC) //pokud nejsou všichni přistěhovalci v budově registrovaní
+				{
+					sem_wait(semaphore);
+					printf("%lu:\tJUDGE\t: waits for imm:\t%lu :\t%lu :\t%lu\n", ++(*A), *NE, *NC, *NB);
+					sem_post(semaphore);
+					while (*NE != *NC);
+				}
 				sem_wait(semaphore);
-				printf("%lu:\tJUDGE\t: waits for imm:\t%lu :\t%lu :\t%lu .\n", ++(*A), *NE, *NC, *NB);
+				printf("%lu:\tJUDGE\t: starts confirmation:\t%lu :\t%lu :\t%lu\n", ++(*A), *NE, *NC, *NB);
+
+				//náhodná doba vydávání certifikátu
+				usleep((rand() % *JT) * 1000);
+				imms_judged += *NC;
+				*certificate_approved = true;
+
+				*NE = *NC = 0;
+				printf("%lu:\tJUDGE\t: ends confirmation:\t%lu :\t%lu :\t%lu\n", ++(*A), *NE, *NC, *NB);
 				sem_post(semaphore);
-				while (*NE != *NC);
 			}
-			sem_wait(semaphore);
-			printf("%lu:\tJUDGE\t: starts confirmation:\t%lu :\t%lu :\t%lu .\n", ++(*A), *NE, *NC, *NB);
-
-			//náhodná doba vydávání certifikátu
-			usleep((rand() % *JT) * 1000);
-			*certificate_approved = true;
-
-			*NE = *NC = 0;
-			printf("%lu:\tJUDGE\t: ends confirmation:\t%lu :\t%lu :\t%lu .\n", ++(*A), *NE, *NC, *NB);
-			sem_post(semaphore);
-
 			//náhodná doba čekání před odchodem z budovy
 			usleep((rand() % *JT) * 1000);
 
 			//odchod z budovy
 			sem_wait(semaphore);
-			imms_judged += *NB;
 			*judge_in_building = false;
-			printf("%lu:\tJUDGE\t: leaves:\t%lu :\t%lu :\t%lu .\n", ++(*A), *NE, *NC, *NB);
+			*certificate_approved = false;
+			printf("%lu:\tJUDGE\t: leaves:\t\t%lu :\t%lu :\t%lu\n", ++(*A), *NE, *NC, *NB);
 			sem_post(semaphore);
 		}
 		sem_wait(semaphore);
@@ -158,16 +160,12 @@ int main(int argc, char **argv)
 		pid_t immigrants = fork();
 		if (immigrants == 0) //pomocný proces pro tvorbu přistěhovalců
 		{
-			int I = 0;
-			int *imms_queue_length = mmap(NULL, sizeof(int), PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
-			*imms_queue_length = 0;
-
-			while (I < *PI)
+			int I;
+			for (I = 1; I <= *PI; I++)
 			{
 				//náhodná doba čekání před generováním přistěhovalce
 				usleep((rand() % *IG) * 1000);
 
-				I++;
 				pid_t immigrant = fork();
 				if (immigrant == 0) //proces přistěhovalce
 				{
@@ -178,37 +176,33 @@ int main(int argc, char **argv)
 					//čeká než soudce odejde z budovy
 					while (*judge_in_building);
 
+					//vstup do budovy
 					sem_wait(semaphore);
-					printf("%lu:\tIMM %d\t: enters:\t%lu :\t%lu :\t%lu .\n", ++(*A), I, ++(*NE), *NC, ++(*NB));
-					int queue_order = *NE;
+					printf("%lu:\tIMM %d\t: enters:\t\t%lu :\t%lu :\t%lu\n", ++(*A), I, ++(*NE), *NC, ++(*NB));
 					sem_post(semaphore);
-
-					//čekání v registrační frontě
-					while (queue_order > *imms_queue_length);
 
 					//registrace
 					sem_wait(semaphore);
-					printf("%lu:\tIMM %d\t: checks:\t%lu :\t%lu :\t%lu .\n", ++(*A), I, *NE, ++(*NC), *NB);
-					(*imms_queue_length)--;
+					printf("%lu:\tIMM %d\t: checks:\t\t%lu :\t%lu :\t%lu\n", ++(*A), I, *NE, ++(*NC), *NB);
 					sem_post(semaphore);
 
 					//čekání na schválení certifikátu soudcem
 					while (!(*certificate_approved));
 
 					sem_wait(semaphore);
-					printf("%lu:\tIMM %d\t: wants certificate:\t%lu :\t%lu :\t%lu .\n", ++(*A), I, *NE, *NC, *NB);
+					printf("%lu:\tIMM %d\t: wants certificate:\t%lu :\t%lu :\t%lu\n", ++(*A), I, *NE, *NC, *NB);
 					sem_post(semaphore);
 
 					usleep((rand() % *JT) * 1000);
 
 					sem_wait(semaphore);
-					printf("%lu:\tIMM %d\t: got certificate:\t%lu :\t%lu :\t%lu .\n", ++(*A), I, *NE, *NC, *NB);
+					printf("%lu:\tIMM %d\t: got certificate:\t%lu :\t%lu :\t%lu\n", ++(*A), I, *NE, *NC, *NB);
 					sem_post(semaphore);
 
-					//odchod z budovy
+					//odchod z budovy, čekání než odejde soudce
 					while (*judge_in_building);
 					sem_wait(semaphore);
-					printf("%lu:\tIMM %d\t: leaves:\t%lu :\t%lu :\t%lu .\n", ++(*A), I, *NE, *NC, --(*NB));
+					printf("%lu:\tIMM %d\t: leaves:\t\t%lu :\t%lu :\t%lu\n", ++(*A), I, *NE, *NC, --(*NB));
 					sem_post(semaphore);
 
 					return 0;
@@ -219,7 +213,7 @@ int main(int argc, char **argv)
 					return 1;
 				}
 			}
-			while (I > 0)
+			while (I > 0) //čekání na skončení procesů přistěhovalců
 			{
 				wait(NULL);
 				I--;
@@ -233,15 +227,9 @@ int main(int argc, char **argv)
 		}
 		else //hlavní proces, čeká na soudce a přistěhovalce
 		{
-			int judge_status;
-			waitpid(judge, &judge_status, 0);
-
-			int immigrants_status;
-			waitpid(immigrants, &immigrants_status, 0);
-
-			printf("jsem rodič, variables %d, %d, %d, %d, %d\n", *PI, *IG, *JG, *IT, *JT);
+			waitpid(judge, NULL, 0);
+			waitpid(immigrants, NULL, 0);
 		}
-	}
-	
+	}	
 	return 0;
 }
