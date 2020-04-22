@@ -8,7 +8,7 @@
 all: proj2
 
 CC = gcc
-CFLAGS = -g -std=gnu99 -pedantic -Wall -Wextra -Werror
+CFLAGS = -g -std=gnu99 -pedantic -Wall -Wextra -Werror -pthread
 
 proj2: proj2.o
 	$(CC) $(CFLAGS) -o $@ $<
@@ -17,8 +17,7 @@ clean:
 	rm -f *.o proj2
 
 pack:
-	zip xmilos02.zip *.c *.h Makefile
+	zip proj2.zip *.c *.h Makefile
 
 run:
-	./wordcount-dynamic
-	./wordcount
+	./proj2 5 2 7 1 1
