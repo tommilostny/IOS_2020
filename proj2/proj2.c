@@ -109,7 +109,8 @@ int main(int argc, char **argv)
 		while (imms_judged < *PI)
 		{
 			//náhodná doba čekání před vstupem do budovy
-			usleep((rand() % *JG) * 1000);
+			if (*JG > 0)
+				usleep((rand() % *JG) * 1000);
 
 			//vstup do budovy
 			sem_wait(semaphore);
@@ -132,16 +133,18 @@ int main(int argc, char **argv)
 				printf("%lu:\tJUDGE\t: starts confirmation:\t%lu :\t%lu :\t%lu\n", ++(*A), *NE, *NC, *NB);
 
 				//náhodná doba vydávání certifikátu
-				usleep((rand() % *JT) * 1000);
+				if (*JT > 0)
+					usleep((rand() % *JT) * 1000);
+				
 				imms_judged += *NC;
 				*certificate_approved = true;
-
 				*NE = *NC = 0;
 				printf("%lu:\tJUDGE\t: ends confirmation:\t%lu :\t%lu :\t%lu\n", ++(*A), *NE, *NC, *NB);
 				sem_post(semaphore);
 			}
 			//náhodná doba čekání před odchodem z budovy
-			usleep((rand() % *JT) * 1000);
+			if (*JT > 0)
+				usleep((rand() % *JT) * 1000);
 
 			//odchod z budovy
 			sem_wait(semaphore);
@@ -169,7 +172,8 @@ int main(int argc, char **argv)
 			for (I = 1; I <= *PI; I++)
 			{
 				//náhodná doba čekání před generováním přistěhovalce
-				usleep((rand() % *IG) * 1000);
+				if (*IG > 0)
+					usleep((rand() % *IG) * 1000);
 
 				pid_t immigrant = fork();
 				if (immigrant == 0) //proces přistěhovalce
@@ -198,7 +202,8 @@ int main(int argc, char **argv)
 					printf("%lu:\tIMM %d\t: wants certificate:\t%lu :\t%lu :\t%lu\n", ++(*A), I, *NE, *NC, *NB);
 					sem_post(semaphore);
 
-					usleep((rand() % *JT) * 1000);
+					if (*IT > 0)
+						usleep((rand() % *IT) * 1000);
 
 					sem_wait(semaphore);
 					printf("%lu:\tIMM %d\t: got certificate:\t%lu :\t%lu :\t%lu\n", ++(*A), I, *NE, *NC, *NB);
