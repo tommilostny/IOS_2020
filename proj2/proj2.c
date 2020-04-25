@@ -264,5 +264,17 @@ int main(int argc, char **argv)
 		}
 	}
 	fclose(output);
+	munmap(PI, sizeof(int));
+	munmap(IG, sizeof(int));
+	munmap(JG, sizeof(int));
+	munmap(IT, sizeof(int));
+	munmap(JT, sizeof(int));
+	munmap(A, sizeof(size_t));
+	munmap(NE, sizeof(size_t));
+	munmap(NC, sizeof(size_t));
+	munmap(NB, sizeof(size_t));
+	munmap(semaphore, sizeof(sem_t));
+	munmap(judge_in_building, sizeof(bool));
+	munmap(certificate_approved, sizeof(bool));
 	return 0;
 }
