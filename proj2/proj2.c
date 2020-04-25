@@ -7,7 +7,6 @@
  * Překladač: gcc (Ubuntu 7.5.0-3ubuntu1~18.04) 7.5.0
  */
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <time.h>
@@ -21,11 +20,8 @@
 #include <fcntl.h>
 #include <stdarg.h>
 
-//Alokace ve sdílené paměti
-#define create_shared_var(type) \
-	mmap(NULL, sizeof(type), PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0)
+#include "proj2.h"
 
-//Načte argument programu a vrací jeho celočíselnou hodnotu v nově alokované sdílené paměti
 int *load_arg(char **argv, int argv_index)
 {
 	int *number = create_shared_var(int);
@@ -34,7 +30,6 @@ int *load_arg(char **argv, int argv_index)
 	return number;
 }
 
-//Tisk do souboru (jako fprintf), zajištění zápisu na disk pomocí fflush()
 void fprintf_flush(FILE *file, char *fmt, ...)
 {
 	va_list parameters;
