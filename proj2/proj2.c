@@ -15,10 +15,10 @@
 #include <sys/mman.h>
 #include <sys/wait.h>
 #include <semaphore.h>
-#include <stdbool.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdarg.h>
+#include <stdbool.h>
 
 #include "proj2.h"
 
@@ -106,11 +106,11 @@ int main(int argc, char **argv)
 	sem_t *semaphore = create_shared_var(sem_t);
 	sem_init(semaphore, 1, 1);
 
-	bool *judge_in_building = create_shared_var(bool);
-	*judge_in_building = false;
+	sem_t *judge_in_building = create_shared_var(sem_t);
+	sem_init(judge_in_building, 1, 1);
 
-	bool *certificate_approved = create_shared_var(bool);
-	*certificate_approved = false;
+	sem_t *certificate_approved = create_shared_var(sem_t);
+	sem_init(certificate_approved, 1, 0);
 
 	FILE *output;
 	if ((output = fopen("proj2.out", "w")) == NULL)
@@ -132,9 +132,13 @@ int main(int argc, char **argv)
 			//vstup do budovy
 			sem_wait(semaphore);
 			fprintf_flush(output, "%lu:\tJUDGE\t: wants to enter.\n", ++(*A));
-			*judge_in_building = true;
+			sem_post(semaphore);
+
+			sem_wait(semaphore);
+			sem_wait(judge_in_building);
 			fprintf_flush(output, "%lu:\tJUDGE\t: enters:\t\t%lu :\t%lu :\t%lu\n", ++(*A), *NE, *NC, *NB);
 			sem_post(semaphore);
+			bool judged = false;
 
 			//vydání rozhodnutí, pokud je někdo v budově
 			if (*NB > 0)
@@ -154,22 +158,26 @@ int main(int argc, char **argv)
 					usleep((rand() % *JT) * 1000);
 				
 				imms_judged += *NC;
-				*certificate_approved = true;
 				*NE = *NC = 0;
+				sem_post(certificate_approved);
+				judged = true;
 				fprintf_flush(output, "%lu:\tJUDGE\t: ends confirmation:\t%lu :\t%lu :\t%lu\n", ++(*A), *NE, *NC, *NB);
 				sem_post(semaphore);
 			}
+
 			//náhodná doba čekání před odchodem z budovy
 			if (*JT > 0)
 				usleep((rand() % *JT) * 1000);
 
 			//odchod z budovy
 			sem_wait(semaphore);
-			*judge_in_building = false;
-			*certificate_approved = false;
 			fprintf_flush(output, "%lu:\tJUDGE\t: leaves:\t\t%lu :\t%lu :\t%lu\n", ++(*A), *NE, *NC, *NB);
+			sem_post(judge_in_building);
+			if (judged)
+				sem_wait(certificate_approved);
 			sem_post(semaphore);
 		}
+		sem_post(certificate_approved);
 		sem_wait(semaphore);
 		fprintf_flush(output, "%lu:\tJUDGE\t: finishes.\n", ++(*A));
 		sem_post(semaphore);
@@ -200,7 +208,8 @@ int main(int argc, char **argv)
 					sem_post(semaphore);
 
 					//čeká než soudce odejde z budovy
-					while (*judge_in_building);
+					sem_wait(judge_in_building);
+					sem_post(judge_in_building);
 
 					//vstup do budovy
 					sem_wait(semaphore);
@@ -213,7 +222,8 @@ int main(int argc, char **argv)
 					sem_post(semaphore);
 
 					//čekání na schválení certifikátu soudcem
-					while (!(*certificate_approved));
+					sem_wait(certificate_approved);
+					sem_post(certificate_approved);
 
 					sem_wait(semaphore);
 					fprintf_flush(output, "%lu:\tIMM %d\t: wants certificate:\t%lu :\t%lu :\t%lu\n", ++(*A), I, *NE, *NC, *NB);
@@ -227,7 +237,8 @@ int main(int argc, char **argv)
 					sem_post(semaphore);
 
 					//odchod z budovy, čekání než odejde soudce
-					while (*judge_in_building);
+					sem_wait(judge_in_building);
+					sem_post(judge_in_building);
 					sem_wait(semaphore);
 					fprintf_flush(output, "%lu:\tIMM %d\t: leaves:\t\t%lu :\t%lu :\t%lu\n", ++(*A), I, *NE, *NC, --(*NB));
 					sem_post(semaphore);
@@ -269,7 +280,7 @@ int main(int argc, char **argv)
 	munmap(NC, sizeof(size_t));
 	munmap(NB, sizeof(size_t));
 	munmap(semaphore, sizeof(sem_t));
-	munmap(judge_in_building, sizeof(bool));
-	munmap(certificate_approved, sizeof(bool));
+	munmap(judge_in_building, sizeof(sem_t));
+	munmap(certificate_approved, sizeof(sem_t));
 	return 0;
 }
