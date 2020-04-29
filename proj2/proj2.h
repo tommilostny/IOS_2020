@@ -9,11 +9,18 @@
 
 #pragma once
 
-#include <stdio.h>
-
 //Alokace ve sdílené paměti
 #define create_shared_var(type) \
 	mmap(NULL, sizeof(type), PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0)
 
 //Načte argument programu a vrací nově alokovaný integer ve sdílené paměti
 int *load_arg(char **argv, int argv_index);
+
+//Proces soudce
+int judge_routine();
+
+//Pomocný proces pro tvorbu přistěhovalců
+int immigrants_generator();
+
+//Proces přistěhovalce číslo I
+int immigrant_routine(int I);
