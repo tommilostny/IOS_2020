@@ -24,10 +24,19 @@
 #include "proj2.h"
 
 //Globální proměnné používané všemi procesy
-int *PI, *JG, *JT, *IG, *IT;
-size_t *A, *NE, *NC, *NB;
-sem_t *write_lock, *judge_in_building, *certificate_approved;
-FILE *output;
+int *PI; //počet procesů přistěhovalců; bude postupně vytvořeno PI immigrants (>=1)
+int *JG; //max hodnota doby (v milisekundách), po které soudce opět vstoupí do budovy (>= 0, <= 2000)
+int *JT; //max hodnota doby (v milisekundách), která simuluje trvání vydávání rozhodnutí soudcem (>= 0, <= 2000)
+int *IG; //max hodnota doby (v milisekundách), po které je generován nový proces immigrant (>= 0, <= 2000)
+int *IT; //max hodnota doby (v milisekundách), která simuluje trvání vyzvedávání certifikátu přistěhovalcem (>= 0, <= 2000)
+size_t *A; //pořadové číslo prováděné akce
+size_t *NE; //aktuální počet přistěhovalců, kteří vstoupili do budovy a dosud o nich nebylo rozhodnuto
+size_t *NC; //aktuální počet přistěhovalců, kteří se zaregistrovali a dosud o nich nebylo rozhodnuto
+size_t *NB; //počet přistěhovalců, kteří jsou v budově
+sem_t *write_lock; //semafor, který zamyká přístup k zápisu do výstupního souboru
+sem_t *judge_in_building; //semafor, který proces soudce zamyká při vstupu do budovy
+sem_t *certificate_approved; //semafor, který soudce odemyká po vydání certifikátu
+FILE *output; //výstupní soubor "proj2.out"
 
 int *load_arg(char **argv, int argv_index)
 {
@@ -184,7 +193,6 @@ int main(int argc, char **argv)
 	}
 	srand(time(NULL));
 
-	//počet procesů přistěhovalců; bude postupně vytvořeno PI immigrants (>=1)
 	PI = load_arg(argv, 1);
 	if (errno != 0 || *PI < 1)
 	{
@@ -192,7 +200,6 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	//max hodnota doby (v milisekundách), po které je generován nový proces immigrant (>= 0, <= 2000)
 	IG = load_arg(argv, 2);
 	if (errno != 0 || *IG < 0 || *IG > 2000)
 	{
@@ -200,7 +207,6 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	//max hodnota doby (v milisekundách), po které soudce opět vstoupí do budovy (>= 0, <= 2000)
 	JG = load_arg(argv, 3);
 	if (errno != 0 || *JG < 0 || *JG > 2000)
 	{
@@ -208,7 +214,6 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	//max hodnota doby (v milisekundách), která simuluje trvání vyzvedávání certifikátu přistěhovalcem (>= 0, <= 2000)
 	IT = load_arg(argv, 4);
 	if (errno != 0 || *IT < 0 || *IT > 2000)
 	{
@@ -216,7 +221,6 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	//max hodnota doby (v milisekundách), která simuluje trvání vydávání rozhodnutí soudcem (>= 0, <= 2000)
 	JT = load_arg(argv, 5);
 	if (errno != 0 || *JT < 0 || *JT > 2000)
 	{
@@ -224,16 +228,9 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	//pořadové číslo prováděné akce
 	A = create_shared_var(size_t);
-
-	//aktuální počet přistěhovalců, kteří vstoupili do budovy a dosud o nich nebylo rozhodnuto
 	NE = create_shared_var(size_t);
-
-	//aktuální počet přistěhovalců, kteří se zaregistrovali a dosud o nich nebylo rozhodnuto
 	NC = create_shared_var(size_t);
-
-	//počet přistěhovalců, kteří jsou v budově
 	NB = create_shared_var(size_t);
 	*A = *NE = *NC = *NB = 0;
 
