@@ -18,5 +18,5 @@
 //Načte argument programu a vrací jeho celočíselnou hodnotu v nově alokované sdílené paměti
 int *load_arg(char **argv, int argv_index);
 
-//Tisk do souboru (jako fprintf), zajištění zápisu na disk pomocí fflush()
-void fprintf_flush(FILE *file, char *fmt, ...);
+//Tisk do souboru (jako fprintf), zajištění okamžitého zápisu do souboru pomocí fflush()
+void write_step(FILE *file, char *fmt, ...);

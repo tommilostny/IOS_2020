@@ -30,7 +30,7 @@ int *load_arg(char **argv, int argv_index)
 	return number;
 }
 
-void fprintf_flush(FILE *file, char *fmt, ...)
+void write_step(FILE *file, char *fmt, ...)
 {
 	va_list parameters;
 	va_start(parameters, fmt);
@@ -131,12 +131,12 @@ int main(int argc, char **argv)
 
 			//vstup do budovy
 			sem_wait(semaphore);
-			fprintf_flush(output, "%lu:\tJUDGE\t: wants to enter.\n", ++(*A));
+			write_step(output, "%lu:\tJUDGE\t: wants to enter.\n", ++(*A));
 			sem_post(semaphore);
 
 			sem_wait(semaphore);
 			sem_wait(judge_in_building);
-			fprintf_flush(output, "%lu:\tJUDGE\t: enters:\t\t%lu :\t%lu :\t%lu\n", ++(*A), *NE, *NC, *NB);
+			write_step(output, "%lu:\tJUDGE\t: enters:\t\t%lu :\t%lu :\t%lu\n", ++(*A), *NE, *NC, *NB);
 			sem_post(semaphore);
 			bool judged = false;
 
@@ -146,12 +146,12 @@ int main(int argc, char **argv)
 				if (*NE != *NC) //pokud nejsou všichni přistěhovalci v budově registrovaní
 				{
 					sem_wait(semaphore);
-					fprintf_flush(output, "%lu:\tJUDGE\t: waits for imm:\t%lu :\t%lu :\t%lu\n", ++(*A), *NE, *NC, *NB);
+					write_step(output, "%lu:\tJUDGE\t: waits for imm:\t%lu :\t%lu :\t%lu\n", ++(*A), *NE, *NC, *NB);
 					sem_post(semaphore);
 					while (*NE != *NC);
 				}
 				sem_wait(semaphore);
-				fprintf_flush(output, "%lu:\tJUDGE\t: starts confirmation:\t%lu :\t%lu :\t%lu\n", ++(*A), *NE, *NC, *NB);
+				write_step(output, "%lu:\tJUDGE\t: starts confirmation:\t%lu :\t%lu :\t%lu\n", ++(*A), *NE, *NC, *NB);
 
 				//náhodná doba vydávání certifikátu
 				if (*JT > 0)
@@ -161,7 +161,7 @@ int main(int argc, char **argv)
 				*NE = *NC = 0;
 				sem_post(certificate_approved);
 				judged = true;
-				fprintf_flush(output, "%lu:\tJUDGE\t: ends confirmation:\t%lu :\t%lu :\t%lu\n", ++(*A), *NE, *NC, *NB);
+				write_step(output, "%lu:\tJUDGE\t: ends confirmation:\t%lu :\t%lu :\t%lu\n", ++(*A), *NE, *NC, *NB);
 				sem_post(semaphore);
 			}
 
@@ -171,7 +171,7 @@ int main(int argc, char **argv)
 
 			//odchod z budovy
 			sem_wait(semaphore);
-			fprintf_flush(output, "%lu:\tJUDGE\t: leaves:\t\t%lu :\t%lu :\t%lu\n", ++(*A), *NE, *NC, *NB);
+			write_step(output, "%lu:\tJUDGE\t: leaves:\t\t%lu :\t%lu :\t%lu\n", ++(*A), *NE, *NC, *NB);
 			sem_post(judge_in_building);
 			if (judged)
 				sem_wait(certificate_approved);
@@ -179,7 +179,7 @@ int main(int argc, char **argv)
 		}
 		sem_post(certificate_approved);
 		sem_wait(semaphore);
-		fprintf_flush(output, "%lu:\tJUDGE\t: finishes.\n", ++(*A));
+		write_step(output, "%lu:\tJUDGE\t: finishes.\n", ++(*A));
 		sem_post(semaphore);
 		return 0;
 	}
@@ -204,7 +204,7 @@ int main(int argc, char **argv)
 				if (immigrant == 0) //proces přistěhovalce
 				{
 					sem_wait(semaphore);
-					fprintf_flush(output, "%lu:\tIMM %d\t: starts.\n", ++(*A), I);
+					write_step(output, "%lu:\tIMM %d\t: starts.\n", ++(*A), I);
 					sem_post(semaphore);
 
 					//čeká než soudce odejde z budovy
@@ -213,12 +213,12 @@ int main(int argc, char **argv)
 
 					//vstup do budovy
 					sem_wait(semaphore);
-					fprintf_flush(output, "%lu:\tIMM %d\t: enters:\t\t%lu :\t%lu :\t%lu\n", ++(*A), I, ++(*NE), *NC, ++(*NB));
+					write_step(output, "%lu:\tIMM %d\t: enters:\t\t%lu :\t%lu :\t%lu\n", ++(*A), I, ++(*NE), *NC, ++(*NB));
 					sem_post(semaphore);
 
 					//registrace
 					sem_wait(semaphore);
-					fprintf_flush(output, "%lu:\tIMM %d\t: checks:\t\t%lu :\t%lu :\t%lu\n", ++(*A), I, *NE, ++(*NC), *NB);
+					write_step(output, "%lu:\tIMM %d\t: checks:\t\t%lu :\t%lu :\t%lu\n", ++(*A), I, *NE, ++(*NC), *NB);
 					sem_post(semaphore);
 
 					//čekání na schválení certifikátu soudcem
@@ -226,21 +226,21 @@ int main(int argc, char **argv)
 					sem_post(certificate_approved);
 
 					sem_wait(semaphore);
-					fprintf_flush(output, "%lu:\tIMM %d\t: wants certificate:\t%lu :\t%lu :\t%lu\n", ++(*A), I, *NE, *NC, *NB);
+					write_step(output, "%lu:\tIMM %d\t: wants certificate:\t%lu :\t%lu :\t%lu\n", ++(*A), I, *NE, *NC, *NB);
 					sem_post(semaphore);
 
 					if (*IT > 0)
 						usleep((rand() % *IT) * 1000);
 
 					sem_wait(semaphore);
-					fprintf_flush(output, "%lu:\tIMM %d\t: got certificate:\t%lu :\t%lu :\t%lu\n", ++(*A), I, *NE, *NC, *NB);
+					write_step(output, "%lu:\tIMM %d\t: got certificate:\t%lu :\t%lu :\t%lu\n", ++(*A), I, *NE, *NC, *NB);
 					sem_post(semaphore);
 
 					//odchod z budovy, čekání než odejde soudce
 					sem_wait(judge_in_building);
 					sem_post(judge_in_building);
 					sem_wait(semaphore);
-					fprintf_flush(output, "%lu:\tIMM %d\t: leaves:\t\t%lu :\t%lu :\t%lu\n", ++(*A), I, *NE, *NC, --(*NB));
+					write_step(output, "%lu:\tIMM %d\t: leaves:\t\t%lu :\t%lu :\t%lu\n", ++(*A), I, *NE, *NC, --(*NB));
 					sem_post(semaphore);
 
 					return 0;
