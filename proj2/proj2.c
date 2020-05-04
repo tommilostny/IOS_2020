@@ -29,10 +29,10 @@ int *JG; //max hodnota doby (v milisekundách), po které soudce opět vstoupí 
 int *JT; //max hodnota doby (v milisekundách), která simuluje trvání vydávání rozhodnutí soudcem (>= 0, <= 2000)
 int *IG; //max hodnota doby (v milisekundách), po které je generován nový proces immigrant (>= 0, <= 2000)
 int *IT; //max hodnota doby (v milisekundách), která simuluje trvání vyzvedávání certifikátu přistěhovalcem (>= 0, <= 2000)
-size_t *A; //pořadové číslo prováděné akce
-size_t *NE; //aktuální počet přistěhovalců, kteří vstoupili do budovy a dosud o nich nebylo rozhodnuto
-size_t *NC; //aktuální počet přistěhovalců, kteří se zaregistrovali a dosud o nich nebylo rozhodnuto
-size_t *NB; //počet přistěhovalců, kteří jsou v budově
+unsigned *A; //pořadové číslo prováděné akce
+unsigned *NE; //aktuální počet přistěhovalců, kteří vstoupili do budovy a dosud o nich nebylo rozhodnuto
+unsigned *NC; //aktuální počet přistěhovalců, kteří se zaregistrovali a dosud o nich nebylo rozhodnuto
+unsigned *NB; //počet přistěhovalců, kteří jsou v budově
 sem_t *write_lock; //semafor, který zamyká přístup k zápisu do výstupního souboru
 sem_t *judge_in_building; //semafor, který proces soudce zamyká při vstupu do budovy
 sem_t *certificate_approved; //semafor, který soudce odemyká po vydání certifikátu
@@ -57,12 +57,12 @@ int judge_routine()
 
 		//vstup do budovy
 		sem_wait(write_lock);
-		fprintf(output, "%lu:\tJUDGE\t: wants to enter.\n", ++(*A));
+		fprintf(output, "%u:\tJUDGE\t: wants to enter\n", ++(*A));
 		sem_post(write_lock);
 
 		sem_wait(write_lock);
 		sem_wait(judge_in_building);
-		fprintf(output, "%lu:\tJUDGE\t: enters:\t\t%lu :\t%lu :\t%lu\n", ++(*A), *NE, *NC, *NB);
+		fprintf(output, "%u:\tJUDGE\t: enters:\t\t%u :\t%u :\t%u\n", ++(*A), *NE, *NC, *NB);
 		sem_post(write_lock);
 		bool judged = false;
 
@@ -72,22 +72,24 @@ int judge_routine()
 			if (*NE != *NC) //pokud nejsou všichni přistěhovalci v budově registrovaní
 			{
 				sem_wait(write_lock);
-				fprintf(output, "%lu:\tJUDGE\t: waits for imm:\t%lu :\t%lu :\t%lu\n", ++(*A), *NE, *NC, *NB);
+				fprintf(output, "%u:\tJUDGE\t: waits for imm:\t%u :\t%u :\t%u\n", ++(*A), *NE, *NC, *NB);
 				sem_post(write_lock);
 				while (*NE != *NC);
 			}
 			sem_wait(write_lock);
-			fprintf(output, "%lu:\tJUDGE\t: starts confirmation:\t%lu :\t%lu :\t%lu\n", ++(*A), *NE, *NC, *NB);
+			fprintf(output, "%u:\tJUDGE\t: starts confirmation:\t%u :\t%u :\t%u\n", ++(*A), *NE, *NC, *NB);
+			sem_post(write_lock);
 
 			//náhodná doba vydávání certifikátu
 			if (*JT > 0)
 				usleep((rand() % *JT) * 1000);
-			
+
+			sem_wait(write_lock);
 			imms_judged += *NC;
 			*NE = *NC = 0;
 			sem_post(certificate_approved);
 			judged = true;
-			fprintf(output, "%lu:\tJUDGE\t: ends confirmation:\t%lu :\t%lu :\t%lu\n", ++(*A), *NE, *NC, *NB);
+			fprintf(output, "%u:\tJUDGE\t: ends confirmation:\t%u :\t%u :\t%u\n", ++(*A), *NE, *NC, *NB);
 			sem_post(write_lock);
 		}
 
@@ -97,7 +99,7 @@ int judge_routine()
 
 		//odchod z budovy
 		sem_wait(write_lock);
-		fprintf(output, "%lu:\tJUDGE\t: leaves:\t\t%lu :\t%lu :\t%lu\n", ++(*A), *NE, *NC, *NB);
+		fprintf(output, "%u:\tJUDGE\t: leaves:\t\t%u :\t%u :\t%u\n", ++(*A), *NE, *NC, *NB);
 		sem_post(judge_in_building);
 		if (judged)
 			sem_wait(certificate_approved);
@@ -105,7 +107,7 @@ int judge_routine()
 	}
 	sem_post(certificate_approved);
 	sem_wait(write_lock);
-	fprintf(output, "%lu:\tJUDGE\t: finishes.\n", ++(*A));
+	fprintf(output, "%u:\tJUDGE\t: finishes\n", ++(*A));
 	sem_post(write_lock);
 
 	return 0;
@@ -114,6 +116,8 @@ int judge_routine()
 int immigrants_generator()
 {
 	int I;
+	int ret_val = 0;
+
 	for (I = 1; I <= *PI; I++)
 	{
 		//náhodná doba čekání před generováním přistěhovalce
@@ -128,7 +132,8 @@ int immigrants_generator()
 		else if (immigrant == -1)
 		{
 			fprintf(stderr, "Error creating immigrant process #%d.\n", I);
-			return 1;
+			ret_val = 1;
+			break;
 		}
 	}
 	while (I > 0) //čekání na skončení procesů přistěhovalců
@@ -136,27 +141,27 @@ int immigrants_generator()
 		wait(NULL);
 		I--;
 	}
-	return 0;
+	return ret_val;
 }
 
 int immigrant_routine(int I)
 {
 	sem_wait(write_lock);
-	fprintf(output, "%lu:\tIMM %d\t: starts.\n", ++(*A), I);
+	fprintf(output, "%u:\tIMM %d\t: starts\n", ++(*A), I);
 	sem_post(write_lock);
 
 	//čeká než soudce odejde z budovy
 	sem_wait(judge_in_building);
-	sem_post(judge_in_building);
 
 	//vstup do budovy
 	sem_wait(write_lock);
-	fprintf(output, "%lu:\tIMM %d\t: enters:\t\t%lu :\t%lu :\t%lu\n", ++(*A), I, ++(*NE), *NC, ++(*NB));
+	fprintf(output, "%u:\tIMM %d\t: enters:\t\t%u :\t%u :\t%u\n", ++(*A), I, ++(*NE), *NC, ++(*NB));
+	sem_post(judge_in_building);
 	sem_post(write_lock);
 
 	//registrace
 	sem_wait(write_lock);
-	fprintf(output, "%lu:\tIMM %d\t: checks:\t\t%lu :\t%lu :\t%lu\n", ++(*A), I, *NE, ++(*NC), *NB);
+	fprintf(output, "%u:\tIMM %d\t: checks:\t\t%u :\t%u :\t%u\n", ++(*A), I, *NE, ++(*NC), *NB);
 	sem_post(write_lock);
 
 	//čekání na schválení certifikátu soudcem
@@ -164,21 +169,21 @@ int immigrant_routine(int I)
 	sem_post(certificate_approved);
 
 	sem_wait(write_lock);
-	fprintf(output, "%lu:\tIMM %d\t: wants certificate:\t%lu :\t%lu :\t%lu\n", ++(*A), I, *NE, *NC, *NB);
+	fprintf(output, "%u:\tIMM %d\t: wants certificate:\t%u :\t%u :\t%u\n", ++(*A), I, *NE, *NC, *NB);
 	sem_post(write_lock);
 
 	if (*IT > 0)
 		usleep((rand() % *IT) * 1000);
 
 	sem_wait(write_lock);
-	fprintf(output, "%lu:\tIMM %d\t: got certificate:\t%lu :\t%lu :\t%lu\n", ++(*A), I, *NE, *NC, *NB);
+	fprintf(output, "%u:\tIMM %d\t: got certificate:\t%u :\t%u :\t%u\n", ++(*A), I, *NE, *NC, *NB);
 	sem_post(write_lock);
 
 	//odchod z budovy, čekání než odejde soudce
 	sem_wait(judge_in_building);
 	sem_post(judge_in_building);
 	sem_wait(write_lock);
-	fprintf(output, "%lu:\tIMM %d\t: leaves:\t\t%lu :\t%lu :\t%lu\n", ++(*A), I, *NE, *NC, --(*NB));
+	fprintf(output, "%u:\tIMM %d\t: leaves:\t\t%u :\t%u :\t%u\n", ++(*A), I, *NE, *NC, --(*NB));
 	sem_post(write_lock);
 
 	return 0;
@@ -228,10 +233,10 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	A = create_shared_var(size_t);
-	NE = create_shared_var(size_t);
-	NC = create_shared_var(size_t);
-	NB = create_shared_var(size_t);
+	A = create_shared_var(unsigned);
+	NE = create_shared_var(unsigned);
+	NC = create_shared_var(unsigned);
+	NB = create_shared_var(unsigned);
 	*A = *NE = *NC = *NB = 0;
 
 	write_lock = create_shared_var(sem_t);
@@ -258,6 +263,7 @@ int main(int argc, char **argv)
 	else if (judge == -1)
 	{
 		fprintf(stderr, "Error creating judge process.\n");
+		fclose(output);
 		return 1;
 	}
 	
@@ -269,6 +275,7 @@ int main(int argc, char **argv)
 	else if (immigrants == -1)
 	{
 		fprintf(stderr, "Error creating immigrants producing process.\n");
+		fclose(output);
 		return 1;
 	}
 	

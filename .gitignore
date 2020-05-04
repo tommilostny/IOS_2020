@@ -10,6 +10,7 @@ file*
 *.html
 ping_bruteforce.sh
 proj2/proj2
+proj2/check-syntax.sh
 
 
 #########################################
