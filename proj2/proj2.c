@@ -194,9 +194,9 @@ int immigrant_routine(int I)
 
 	//odchod z budovy, čekání než odejde soudce
 	sem_wait(judge_in_building);
-	sem_post(judge_in_building);
 	sem_wait(write_lock);
 	fprintf(output, "%u:\tIMM %d\t: leaves:\t\t%u :\t%u :\t%u\n", ++(*A), I, *NE, *NC, --(*NB));
+	sem_post(judge_in_building);
 	sem_post(write_lock);
 
 	return 0;
