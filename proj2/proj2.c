@@ -131,10 +131,10 @@ int judge_routine()
 
 int immigrants_generator()
 {
-	int I; //identifikátor procesu
+	int I = 0; //identifikátor procesu
 	int ret_val = 0;
 
-	for (I = 1; I <= PI; I++)
+	while (++I <= PI)
 	{
 		//náhodná doba čekání před generováním přistěhovalce
 		if (IG > 0)
@@ -152,11 +152,10 @@ int immigrants_generator()
 			break;
 		}
 	}
-	while (I > 0) //čekání na skončení procesů přistěhovalců
-	{
+
+	while (I-- > 0) //čekání na skončení procesů přistěhovalců
 		wait(NULL);
-		I--;
-	}
+
 	return ret_val;
 }
 
@@ -291,6 +290,7 @@ int main(int argc, char **argv)
 	else if (immigrants == -1)
 	{
 		fprintf(stderr, "Error creating immigrants producing process.\n");
+		kill(judge, SIGKILL);
 		free_resources();
 		return 1;
 	}
