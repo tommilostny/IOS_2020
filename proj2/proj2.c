@@ -73,14 +73,14 @@ int judge_routine()
 		fprintf(output, "%u:\tJUDGE\t: wants to enter\n", ++(*A));
 		sem_post(write_lock);
 
-		sem_wait(write_lock);
 		sem_wait(judge_in_building);
+		sem_wait(write_lock);
 		fprintf(output, "%u:\tJUDGE\t: enters:\t\t%u :\t%u :\t%u\n", ++(*A), *NE, *NC, *NB);
 		sem_post(write_lock);
 		bool judged = false;
 
 		//vydání rozhodnutí, pokud je někdo v budově
-		if (*NB > 0)
+		if (*NE > 0)
 		{
 			//soudce čeká, když nejsou všichni přistěhovalci v budově registrovaní
 			if (*NE != *NC)
@@ -260,14 +260,15 @@ int main(int argc, char **argv)
 
 	certificate_approved = create_shared_var(sem_t);
 	sem_init(certificate_approved, 1, 0);
-
+/*
 	if ((output = fopen("proj2.out", "w")) == NULL)
 	{
 		fprintf(stderr, "Error creating output file.\n");
 		return 1;
 	}
 	setbuf(output, NULL);
-
+*/
+output = stdout;
 	pid_t judge = fork();
 	if (judge == 0) //proces soudce
 	{
