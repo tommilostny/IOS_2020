@@ -18,17 +18,16 @@
 #include <semaphore.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <stdarg.h>
 #include <stdbool.h>
 
 #include "proj2.h"
 
 //Globální proměnné používané všemi procesy
-int *PI; //počet procesů přistěhovalců; bude postupně vytvořeno PI immigrants (>=1)
-int *JG; //max hodnota doby (v milisekundách), po které soudce opět vstoupí do budovy (>= 0, <= 2000)
-int *JT; //max hodnota doby (v milisekundách), která simuluje trvání vydávání rozhodnutí soudcem (>= 0, <= 2000)
-int *IG; //max hodnota doby (v milisekundách), po které je generován nový proces immigrant (>= 0, <= 2000)
-int *IT; //max hodnota doby (v milisekundách), která simuluje trvání vyzvedávání certifikátu přistěhovalcem (>= 0, <= 2000)
+int PI; //počet procesů přistěhovalců; bude postupně vytvořeno PI immigrants (>=1)
+int JG; //max hodnota doby (v milisekundách), po které soudce opět vstoupí do budovy (>= 0, <= 2000)
+int JT; //max hodnota doby (v milisekundách), která simuluje trvání vydávání rozhodnutí soudcem (>= 0, <= 2000)
+int IG; //max hodnota doby (v milisekundách), po které je generován nový proces immigrant (>= 0, <= 2000)
+int IT; //max hodnota doby (v milisekundách), která simuluje trvání vyzvedávání certifikátu přistěhovalcem (>= 0, <= 2000)
 unsigned *A; //pořadové číslo prováděné akce
 unsigned *NE; //aktuální počet přistěhovalců, kteří vstoupili do budovy a dosud o nich nebylo rozhodnuto
 unsigned *NC; //aktuální počet přistěhovalců, kteří se zaregistrovali a dosud o nich nebylo rozhodnuto
@@ -38,22 +37,38 @@ sem_t *judge_in_building; //semafor, který proces soudce zamyká při vstupu do
 sem_t *certificate_approved; //semafor, který soudce odemyká po vydání certifikátu
 FILE *output; //výstupní soubor "proj2.out"
 
-int *load_arg(char **argv, int argv_index)
+int load_arg(char **argv, int argv_index)
 {
-	int *number = create_shared_var(int);
 	errno = 0;
-	*number = strtol(argv[argv_index], NULL, 10);
-	return number;
+	return strtol(argv[argv_index], NULL, 10);
+}
+
+void free_resources()
+{
+	munmap(A, sizeof(unsigned));
+	munmap(NE, sizeof(unsigned));
+	munmap(NC, sizeof(unsigned));
+	munmap(NB, sizeof(unsigned));
+
+	sem_destroy(write_lock);
+	sem_destroy(judge_in_building);
+	sem_destroy(certificate_approved);
+
+	munmap(write_lock, sizeof(sem_t));
+	munmap(judge_in_building, sizeof(sem_t));
+	munmap(certificate_approved, sizeof(sem_t));
+
+	fclose(output);
 }
 
 int judge_routine()
 {
 	int imms_judged = 0; //počet souzených přistěhovalců
-	while (imms_judged < *PI)
+	while (imms_judged < PI)
 	{
 		//náhodná doba čekání před vstupem do budovy
-		if (*JG > 0)
-			usleep((rand() % *JG) * 1000);
+		if (JG > 0)
+			usleep((rand() % JG) * 1000);
 
 		//vstup do budovy
 		sem_wait(write_lock);
@@ -69,7 +84,8 @@ int judge_routine()
 		//vydání rozhodnutí, pokud je někdo v budově
 		if (*NB > 0)
 		{
-			if (*NE != *NC) //pokud nejsou všichni přistěhovalci v budově registrovaní
+			//soudce čeká, když nejsou všichni přistěhovalci v budově registrovaní
+			if (*NE != *NC)
 			{
 				sem_wait(write_lock);
 				fprintf(output, "%u:\tJUDGE\t: waits for imm:\t%u :\t%u :\t%u\n", ++(*A), *NE, *NC, *NB);
@@ -81,8 +97,8 @@ int judge_routine()
 			sem_post(write_lock);
 
 			//náhodná doba vydávání certifikátu
-			if (*JT > 0)
-				usleep((rand() % *JT) * 1000);
+			if (JT > 0)
+				usleep((rand() % JT) * 1000);
 
 			sem_wait(write_lock);
 			imms_judged += *NC;
@@ -94,8 +110,8 @@ int judge_routine()
 		}
 
 		//náhodná doba čekání před odchodem z budovy
-		if (*JT > 0)
-			usleep((rand() % *JT) * 1000);
+		if (JT > 0)
+			usleep((rand() % JT) * 1000);
 
 		//odchod z budovy
 		sem_wait(write_lock);
@@ -115,14 +131,14 @@ int judge_routine()
 
 int immigrants_generator()
 {
-	int I;
+	int I; //identifikátor procesu
 	int ret_val = 0;
 
-	for (I = 1; I <= *PI; I++)
+	for (I = 1; I <= PI; I++)
 	{
 		//náhodná doba čekání před generováním přistěhovalce
-		if (*IG > 0)
-			usleep((rand() % *IG) * 1000);
+		if (IG > 0)
+			usleep((rand() % IG) * 1000);
 
 		pid_t immigrant = fork();
 		if (immigrant == 0) //proces přistěhovalce
@@ -172,8 +188,8 @@ int immigrant_routine(int I)
 	fprintf(output, "%u:\tIMM %d\t: wants certificate:\t%u :\t%u :\t%u\n", ++(*A), I, *NE, *NC, *NB);
 	sem_post(write_lock);
 
-	if (*IT > 0)
-		usleep((rand() % *IT) * 1000);
+	if (IT > 0)
+		usleep((rand() % IT) * 1000);
 
 	sem_wait(write_lock);
 	fprintf(output, "%u:\tIMM %d\t: got certificate:\t%u :\t%u :\t%u\n", ++(*A), I, *NE, *NC, *NB);
@@ -199,37 +215,37 @@ int main(int argc, char **argv)
 	srand(time(NULL));
 
 	PI = load_arg(argv, 1);
-	if (errno != 0 || *PI < 1)
+	if (errno != 0 || PI < 1)
 	{
-		fprintf(stderr, "Error: %d:\tWrong argument (PI must be >= 1).\n", *PI);
+		fprintf(stderr, "Error: %d:\tWrong argument (PI must be >= 1).\n", PI);
 		return 1;
 	}
 
 	IG = load_arg(argv, 2);
-	if (errno != 0 || *IG < 0 || *IG > 2000)
+	if (errno != 0 || IG < 0 || IG > 2000)
 	{
-		fprintf(stderr, "Error: %d:\tWrong argument (IG must be >= 0 and <= 2000).\n", *IG);
+		fprintf(stderr, "Error: %d:\tWrong argument (IG must be >= 0 and <= 2000).\n", IG);
 		return 1;
 	}
 
 	JG = load_arg(argv, 3);
-	if (errno != 0 || *JG < 0 || *JG > 2000)
+	if (errno != 0 || JG < 0 || JG > 2000)
 	{
-		fprintf(stderr, "Error: %d:\tWrong argument (JG must be >= 0 and <= 2000).\n", *JG);
+		fprintf(stderr, "Error: %d:\tWrong argument (JG must be >= 0 and <= 2000).\n", JG);
 		return 1;
 	}
 
 	IT = load_arg(argv, 4);
-	if (errno != 0 || *IT < 0 || *IT > 2000)
+	if (errno != 0 || IT < 0 || IT > 2000)
 	{
-		fprintf(stderr, "Error: %d:\tWrong argument (IT must be >= 0 and <= 2000).\n", *IT);
+		fprintf(stderr, "Error: %d:\tWrong argument (IT must be >= 0 and <= 2000).\n", IT);
 		return 1;
 	}
 
 	JT = load_arg(argv, 5);
-	if (errno != 0 || *JT < 0 || *JT > 2000)
+	if (errno != 0 || JT < 0 || JT > 2000)
 	{
-		fprintf(stderr, "Error: %d:\tWrong argument (JT must be >= 0 and <= 2000).\n", *JT);
+		fprintf(stderr, "Error: %d:\tWrong argument (JT must be >= 0 and <= 2000).\n", JT);
 		return 1;
 	}
 
@@ -263,7 +279,7 @@ int main(int argc, char **argv)
 	else if (judge == -1)
 	{
 		fprintf(stderr, "Error creating judge process.\n");
-		fclose(output);
+		free_resources();
 		return 1;
 	}
 	
@@ -275,7 +291,7 @@ int main(int argc, char **argv)
 	else if (immigrants == -1)
 	{
 		fprintf(stderr, "Error creating immigrants producing process.\n");
-		fclose(output);
+		free_resources();
 		return 1;
 	}
 	
@@ -283,6 +299,6 @@ int main(int argc, char **argv)
 	waitpid(judge, NULL, 0);
 	waitpid(immigrants, NULL, 0);
 
-	fclose(output);
+	free_resources();
 	return 0;
 }

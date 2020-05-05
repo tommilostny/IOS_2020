@@ -13,8 +13,11 @@
 #define create_shared_var(type) \
 	mmap(NULL, sizeof(type), PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0)
 
-//Načte argument programu a vrací nově alokovaný integer ve sdílené paměti
-int *load_arg(char **argv, int argv_index);
+//Načte argument programu do celočíselné proměnné
+int load_arg(char **argv, int argv_index);
+
+//Dealokuje sdílenou paměť, semafory a výstupní soubor
+void free_resources();
 
 //Proces soudce
 int judge_routine();
