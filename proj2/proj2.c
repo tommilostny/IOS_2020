@@ -130,7 +130,6 @@ int judge_routine()
 int immigrants_generator()
 {
 	int I = 0; //identifikátor procesu
-	int ret_val = 0;
 
 	while (++I <= PI)
 	{
@@ -146,15 +145,15 @@ int immigrants_generator()
 		else if (immigrant == -1)
 		{
 			fprintf(stderr, "Error creating immigrant process #%d.\n", I);
-			ret_val = 1;
-			break;
+			kill(-1, SIGKILL);
+			return 1;
 		}
 	}
 
 	while (I-- > 0) //čekání na skončení procesů přistěhovalců
 		wait(NULL);
 
-	return ret_val;
+	return 0;
 }
 
 int immigrant_routine(int I)
