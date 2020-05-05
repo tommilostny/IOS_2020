@@ -260,15 +260,14 @@ int main(int argc, char **argv)
 
 	certificate_approved = create_shared_var(sem_t);
 	sem_init(certificate_approved, 1, 0);
-/*
+
 	if ((output = fopen("proj2.out", "w")) == NULL)
 	{
 		fprintf(stderr, "Error creating output file.\n");
 		return 1;
 	}
 	setbuf(output, NULL);
-*/
-output = stdout;
+
 	pid_t judge = fork();
 	if (judge == 0) //proces soudce
 	{
