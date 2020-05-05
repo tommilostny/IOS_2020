@@ -16,8 +16,6 @@
 #include <sys/mman.h>
 #include <sys/wait.h>
 #include <semaphore.h>
-#include <sys/stat.h>
-#include <fcntl.h>
 #include <stdbool.h>
 
 #include "proj2.h"
