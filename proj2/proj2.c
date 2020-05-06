@@ -62,6 +62,7 @@ void free_resources()
 int judge_routine()
 {
 	int imms_judged = 0; //počet souzených přistěhovalců
+
 	while (imms_judged < PI)
 	{
 		//náhodná doba čekání před vstupem do budovy
@@ -156,7 +157,7 @@ int immigrants_generator()
 	return 0;
 }
 
-int immigrant_routine(int I)
+int immigrant_routine(const int I)
 {
 	sem_wait(write_lock);
 	fprintf(output, "%u:\tIMM %d\t: starts\n", ++(*A), I);

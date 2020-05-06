@@ -13,7 +13,7 @@
 #define create_shared_var(type) \
 	mmap(NULL, sizeof(type), PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0)
 
-//Načte argument programu do celočíselné proměnné
+//Načte argument programu a vrací jeho celočíselnou hodnotu
 int load_arg(char **argv, int argv_index);
 
 //Dealokuje sdílenou paměť, semafory a výstupní soubor
@@ -26,4 +26,4 @@ int judge_routine();
 int immigrants_generator();
 
 //Proces přistěhovalce číslo I
-int immigrant_routine(int I);
+int immigrant_routine(const int I);
