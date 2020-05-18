@@ -71,3 +71,8 @@ Mkfile.old
 dkms.conf
 .vscode/c_cpp_properties.json
 *.zip
+
+
+proj2/errcode
+proj2/proj2.c.odevzdany
+proj2/proj2.c.patch

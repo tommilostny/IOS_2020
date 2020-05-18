@@ -80,9 +80,6 @@ int judge_routine()
 		sem_post(write_lock);
 		bool judged = false;
 
-		//vydání rozhodnutí, pokud je někdo v budově
-		if (*NE > 0)
-		{
 			//soudce čeká, když nejsou všichni přistěhovalci v budově registrovaní
 			if (*NE != *NC)
 			{
@@ -100,13 +97,15 @@ int judge_routine()
 				usleep((rand() % JT) * 1000);
 
 			sem_wait(write_lock);
-			imms_judged += *NC;
-			*NE = *NC = 0;
-			sem_post(certificate_approved);
-			judged = true;
+			if (*NE > 0)
+			{
+				imms_judged += *NC;
+				*NE = *NC = 0;
+				sem_post(certificate_approved);
+				judged = true;
+			}
 			fprintf(output, "%u:\tJUDGE\t: ends confirmation:\t%u :\t%u :\t%u\n", ++(*A), *NE, *NC, *NB);
 			sem_post(write_lock);
-		}
 
 		//náhodná doba čekání před odchodem z budovy
 		if (JT > 0)
