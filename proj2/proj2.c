@@ -80,32 +80,32 @@ int judge_routine()
 		sem_post(write_lock);
 		bool judged = false;
 
-			//soudce čeká, když nejsou všichni přistěhovalci v budově registrovaní
-			if (*NE != *NC)
-			{
-				sem_wait(write_lock);
-				fprintf(output, "%u:\tJUDGE\t: waits for imm:\t%u :\t%u :\t%u\n", ++(*A), *NE, *NC, *NB);
-				sem_post(write_lock);
-				while (*NE != *NC);
-			}
+		//soudce čeká, když nejsou všichni přistěhovalci v budově registrovaní
+		if (*NE != *NC)
+		{
 			sem_wait(write_lock);
-			fprintf(output, "%u:\tJUDGE\t: starts confirmation:\t%u :\t%u :\t%u\n", ++(*A), *NE, *NC, *NB);
+			fprintf(output, "%u:\tJUDGE\t: waits for imm:\t%u :\t%u :\t%u\n", ++(*A), *NE, *NC, *NB);
 			sem_post(write_lock);
+			while (*NE != *NC);
+		}
+		sem_wait(write_lock);
+		fprintf(output, "%u:\tJUDGE\t: starts confirmation:\t%u :\t%u :\t%u\n", ++(*A), *NE, *NC, *NB);
+		sem_post(write_lock);
 
-			//náhodná doba vydávání certifikátu
-			if (JT > 0)
-				usleep((rand() % JT) * 1000);
+		//náhodná doba vydávání certifikátu
+		if (JT > 0)
+			usleep((rand() % JT) * 1000);
 
-			sem_wait(write_lock);
-			if (*NE > 0)
-			{
-				imms_judged += *NC;
-				*NE = *NC = 0;
-				sem_post(certificate_approved);
-				judged = true;
-			}
-			fprintf(output, "%u:\tJUDGE\t: ends confirmation:\t%u :\t%u :\t%u\n", ++(*A), *NE, *NC, *NB);
-			sem_post(write_lock);
+		sem_wait(write_lock);
+		if (*NE > 0)
+		{
+			imms_judged += *NC;
+			*NE = *NC = 0;
+			sem_post(certificate_approved);
+			judged = true;
+		}
+		fprintf(output, "%u:\tJUDGE\t: ends confirmation:\t%u :\t%u :\t%u\n", ++(*A), *NE, *NC, *NB);
+		sem_post(write_lock);
 
 		//náhodná doba čekání před odchodem z budovy
 		if (JT > 0)
